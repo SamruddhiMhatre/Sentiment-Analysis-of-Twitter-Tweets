@@ -1,3 +1,5 @@
+import nltk
+
 from clean_tweet import textFiltered, textTokenized
 from nltk.corpus import twitter_samples
 from nltk.tokenize import TweetTokenizer
@@ -10,6 +12,7 @@ import csv
 import time
 import json
 import pandas as pd
+from nltk import FreqDist
 from nltk.tokenize import word_tokenize
 
 twitter_sample = twitter_samples.fileids()
@@ -56,6 +59,12 @@ for tokens in negative_tokenized:
 
 print('positive filtered: ',positive_filtered[:10])
 print('negative filtered: ',negative_filtered[:10])
+#
+# for fd in positive_filtered:
+#     fd = nltk.FreqDist([w for w in fd])
+# print(fd['top'])
+
+
 
 
 # data creation
@@ -86,15 +95,20 @@ classifier = NaiveBayesClassifier.train(train_data)
 print("Training accuracy is:{}\n".format(classify.accuracy(classifier, train_data)))
 print("Testing accuracy is:{}\n".format(classify.accuracy(classifier, test_data)))
 print(classifier.show_most_informative_features(10))
+# print(ensemble_clf.classify(feats), ensemble_clf.confidence(feats))
 
 test_tweet = "If I could give less than one star, that would have been my choice.  I rent a home and Per my lease agreement it is MY responsibility to pay their Pool Service company.  Within the last year they changed to PoolServ.  I have had  major issues with new techs every week, never checking PH balances, cleaning the filter, and not showing up at all 2 weeks in the past 2 months. I have had 4 different techs in the past 4 weeks.   I have emailed and called them and they never respond back nor even acknowledged my concerns or requests.  I cannot change companies but I'm required to still pay for lousy or no service.  Attached are a couple pictures of my pool recently due to one tech just didn't put any chlorine in it at all according to the tech who came the following week to attempt to clean it up.  Please think twice before working with these people.  No one wants to work with a business that doesn't return phone calls or emails."
 test_token = tweet_tokenizer.tokenize(test_tweet)
 test_filtered = filter_tokens(test_token)
 
+from nltk.sentiment import SentimentIntensityAnalyzer
+nltk.download('vader_lexicon')
+sia = SentimentIntensityAnalyzer()
+print(sia.polarity_scores(test_tweet))
+print(sia.polarity_scores(test_tweet)['pos'])
+
 print(test_tweet)
 print(classifier.classify(dict([token, True] for token in test_filtered)))
-
-
 
 
 token = '1337701516203806722-Tc0qgs0oxB0oOqK1CMtXt4u3NmvqOu'
@@ -104,11 +118,7 @@ consumer_secret = '1XwRpfw2YZOat9gD9OLf8RC5qw0HqxUL0Dvp3QmQ33ffoJlTiD'
 
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(token, token_secret)
-
-
-
 api = tweepy.API(auth)
-
 
 
 def get_tweets(keyword):  # keyword can be username or hash tag
@@ -168,6 +178,8 @@ with open('tweet_json_Data.txt', encoding='utf-8') as json_file:
 # Writing tweet dataset ti csv file for future reference
 
 sentiment = []
+sentiment_pos_score = []
+sentiment_neg_score = []
 for val in tweet_dataset['text']:
     test_token = tweet_tokenizer.tokenize(val)
     test_filtered = filter_tokens(test_token)
@@ -175,8 +187,13 @@ for val in tweet_dataset['text']:
     print(val)
     print(classifier.classify(dict([token, True] for token in test_filtered)))
     sentiment.append(classifier.classify(dict([token, True] for token in test_filtered)))
-
+    print(sia.polarity_scores(val))
+    sentiment_pos_score.append(sia.polarity_scores(val)['pos'])
+    sentiment_neg_score.append(sia.polarity_scores(val)['neg'])
 print(sentiment)
 tweet_dataset['sentiment'] = sentiment
-print(tweet_dataset[['text','sentiment']])
+tweet_dataset['pos_score'] = sentiment_pos_score
+tweet_dataset['neg_score'] = sentiment_neg_score
+
+print(tweet_dataset[['text','sentiment','pos_score','neg_score']])
 tweet_dataset.to_csv('tweet_data.csv')
